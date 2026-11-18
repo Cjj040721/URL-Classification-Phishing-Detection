@@ -1,181 +1,195 @@
-# URL Classification System 🔗🛡️  
-Real‑time detection of malicious (phishing) URLs using classical ML and deep‑learning models with a Flask REST API and a lightweight web UI.
-
----
-
-## 1. Project Motivation
-Browser black‑lists are purely reactive and miss brand‑new (“zero‑day”) phishing pages.  
-This project builds a **feature‑driven, model‑based** alternative that learns patterns of malicious behaviour and flags dangerous links on the fly.
-
 <div align="center">
-  <img src="docs/architecture.png" width="720" alt="System architecture">
+
+# URL Classification — Phishing Detection
+
+**Feature-driven URL analysis with a Bi-LSTM model, Flask API, and Vue dashboard.**
+
+A defensive-security project that combines URL, domain, DNS, HTML, and JavaScript features to classify websites as legitimate or potentially malicious, with single-URL checks, CSV batch processing, and result visualisation.
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Bi--LSTM-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Flask](https://img.shields.io/badge/Flask-REST_API-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
+[![Verification](https://img.shields.io/badge/End--to--End-Verified-2AA887)](#verification)
+
+[Overview](#overview) · [Pipeline](#pipeline) · [Quick Start](#quick-start) · [API](#api) · [Evaluation](#evaluation) · [Limitations](#limitations)
+
 </div>
 
-*Figure 1 – High‑level architecture. A bidirectional LSTM is the production model. Classical ML baselines and CNN variants are provided for comparison.*
-
 ---
 
-## 2. Repository Layout
+<img src="docs/assets/dashboard.png" alt="Phishing detection dashboard showing a real example.com prediction" width="100%">
+
+<a id="overview"></a>
+## 1. Overview
+
+Static browser blocklists are reactive: a newly registered phishing page may not appear in a list until after users are exposed. This project explores a feature-driven alternative that extracts measurable signals from a URL and its host, then applies classical machine-learning or neural models.
+
+The included application connects the full workflow:
+
+1. Submit one URL or a CSV containing a `url` column.
+2. Extract lexical, domain, DNS, and page-content features.
+3. Run the included Bi-LSTM pipeline.
+4. Display predictions, safety totals, history, and charts in a Vue dashboard.
+5. Export filtered results as CSV.
+
+> This is a defensive-security research project, not a guarantee that a URL is safe. Predictions should support a warning or review workflow rather than become the only blocking decision.
+
+<a id="pipeline"></a>
+## 2. Data and Model Pipeline
+
+<img src="docs/architecture.png" alt="Dataset construction, feature extraction, model evaluation, and user interface architecture" width="100%">
+
+| Stage | Implementation |
+|---|---|
+| **Malicious samples** | URLhaus feed, as documented by the original project |
+| **Legitimate samples** | Common Crawl CDX sampling |
+| **Feature extraction** | URL and lexical signals, registration and DNS information, HTML and JavaScript hints |
+| **Feature selection** | Low-variance pruning, correlation analysis, and model importance |
+| **Models** | Classical ML baselines, CNN variants, and Bi-LSTM models |
+| **Application model** | `best_fold4.joblib` with preprocessing metadata and a two-layer bidirectional LSTM |
+| **External evaluation** | Historical PhiUSIIL experiment documented below |
+
+Prepared datasets, training and evaluation scripts, model checkpoints, and the web application are preserved in the repository. Large model artefacts are retained because the current API loads one of them directly.
+
+## 3. Quick Start
+
+### Backend
+
+**Requirements:** Python 3.10+ and the packages in `requirements.txt`.
+
+```bash
+git clone https://github.com/Cjj040721/URL-Classification-Phishing-Detection.git
+cd URL-Classification-Phishing-Detection
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+
+cd "src/User_interface/back-end code"
+python main.py
 ```
 
-url\_classification\_system/
-├── data/                          # Final balanced dataset (CSV) & feature matrices
-├── docs/                          # Explanatory figures (architecture.png, …)
+The API listens on **port 5001**. macOS uses port 5000 for AirPlay Receiver, so this project uses 5001 to avoid that conflict.
+
+Test the running service:
+
+```bash
+curl http://127.0.0.1:5001/
+
+curl -X POST http://127.0.0.1:5001/detect \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com"}'
+```
+
+### Frontend
+
+In a second terminal, from the repository root:
+
+```bash
+cd "src/User_interface/front-end code"
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173`. The dashboard defaults to `http://localhost:5001`. To use a different API address:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:5001 npm run dev
+```
+
+<a id="api"></a>
+## 4. HTTP API
+
+| Route | Method | Input | Result |
+|---|---|---|---|
+| `/` | GET | None | Backend welcome message |
+| `/detect` | POST | `{ "url": "https://example.com" }` | Original URL, class, prediction, and model probability |
+| `/upload_csv` | POST | Multipart CSV file with a `url` column | Batch prediction results and total count |
+| `/export_csv` | POST | `{ "data": [...] }` | CSV response containing the supplied records |
+
+Real verification response for `https://example.com` on the included model:
+
+```json
+{
+  "class": 0,
+  "original_url": "https://example.com",
+  "prediction": "legitimate",
+  "probability": 0.002650746377184987
+}
+```
+
+Model outputs vary with feature availability and model version. This response is evidence of an executed request, not a universal judgement about the domain.
+
+<a id="evaluation"></a>
+## 5. Historical Evaluation
+
+The original project documentation reports the following results. They are retained as historical project results and **were not retrained or independently recomputed during this documentation update**.
+
+| Experiment | Reported result |
+|---|---:|
+| Bi-LSTM precision | 0.9985 |
+| Bi-LSTM recall | 0.9971 |
+| Bi-LSTM F1 | 0.9978 |
+| Bi-LSTM ROC-AUC | 0.9991 |
+| External PhiUSIIL accuracy | 88.32% |
+
+Training, evaluation, feature-engineering, and generalisation notebooks are included under `src/Models_and_evaluations/` for inspection and further reproduction work.
+
+<a id="verification"></a>
+## 6. Verification
+
+| Check | Result |
+|---|---|
+| Frontend production build | Passed with Vite |
+| Backend module import | Passed in a clean virtual environment |
+| Real backend request | `/detect` completed for `https://example.com` using `best_fold4.joblib` |
+| Real browser workflow | URL submitted through the Vue UI; Safe result, statistics, and chart updated |
+| README screenshot | Captured from that real end-to-end request, not a mock dashboard |
+
+The frontend build reports a large-chunk warning and npm reports dependency advisories; neither is hidden or represented as a security audit. No automated test suite was present in the original repository.
+
+## 7. Repository Structure
+
+```text
+URL-Classification-Phishing-Detection/
+├── data/                          # Prepared datasets and feature matrices
+├── docs/
+│   ├── architecture.png           # Pipeline diagram
+│   └── assets/dashboard.png       # Real application screenshot
 ├── src/
-│   ├── Dataset\_construction/      # Scripts that build the dataset from raw feeds
-│   ├── Feature\_engineering/       # URL, domain & content feature extraction + selection
-│   ├── Models\_and\_evaluations/
-│   │   ├── Machine\_Learning/      # Tree, RF, SVM, XGBoost baselines
-│   │   ├── CNN/                   # Character‑level CNN & MobileNet‑V2
-│   │   └── LSTM/                  # Bidirectional LSTM (production) + trainers
-│   └── User\_interface/
-│       ├── back-end code/         # Flask REST API for real‑time inference
-│       └── front-end code/        # Vite + Vue 3 dashboard (single & batch check)
-├── requirements.txt               # Core Python deps (see §4)
-└── LICENSE (MIT)                  # Change if needed
-
-````
-
----
-
-## 3. Data Pipeline
-
-| Stage | Source / Method | Key Points |
-|-------|-----------------|------------|
-| **Malicious URLs** | [URLhaus](https://urlhaus.abuse.ch/) daily feed | ~265 k samples |
-| **Legitimate URLs** | [Common Crawl CDX](https://commoncrawl.org) snapshot | Randomly sampled to balance classes |
-| **Feature Extraction** | 30 + handcrafted features <br>– URL / lexical <br>– Domain / DNS <br>– HTML & JS hints | Implemented in `feature_extraction_segment.py` |
-| **Feature Selection** | Low‑variance pruning, Pearson/Spearman correlation, RF importance | `feature_selection.py` |
-| **Train/Test Split** | 80 % stratified train (internal), 20 % hold‑out + **PhiUSIIL** external test | Ensures generalisation |
-
-The prepared dataset (`data/final_dataset_with_selected_features.csv`) is shipped for convenience.  
-To rebuild from scratch:
-
-```bash
-python src/Dataset_construction/generate_dataset.py           # raw → balanced CSV
-python src/Feature_engineering/feature_extraction_segment.py  # feature matrix
-python src/Feature_engineering/feature_selection.py           # reduced feature set
-````
-
----
-
-## 4. Environment & Installation
-
-> **Python 3.10+** (tested) & **Node 18+** for the optional web dashboard.
-
-### 4.1  Create a virtualenv and install Python dependencies
-
-```bash
-git clone https://github.com/Cjj040721/url_classification_system.git
-cd url_classification_system
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-# Deep‑learning extras
-pip install torch==2.3.0 torchvision==0.18.0 --index-url https://download.pytorch.org/whl/cu121
-pip install flask flask_cors
+│   ├── Dataset_construction/      # Dataset generation scripts
+│   ├── Feature_engineering/       # Feature extraction and selection
+│   ├── Models_and_evaluations/
+│   │   ├── Machine_Learning/      # Classical baselines
+│   │   ├── CNN/                   # CNN experiments
+│   │   └── LSTM/                  # Bi-LSTM training and evaluation
+│   └── User_interface/
+│       ├── back-end code/         # Flask API and current inference pipeline
+│       └── front-end code/        # Vue + Element Plus + ECharts dashboard
+├── requirements.txt
+└── LICENSE
 ```
 
-> **Note** – GPU acceleration is optional but strongly recommended for (re)training.
+<a id="limitations"></a>
+## 8. Limitations and Responsible Use
 
-### 4.2  Front‑end (dashboard) – *OPTIONAL*
+- Feature extraction can perform WHOIS, DNS, and HTTP requests; network availability changes both latency and feature values.
+- The API has no authentication or production deployment controls. Run it locally for research use.
+- Batch inference uses concurrent network and model work; a public deployment would need stricter queueing and resource limits.
+- Historical metrics do not establish current performance against new phishing campaigns.
+- False positives and false negatives remain possible. Do not present a model score as proof of safety.
+- Third-party datasets and feeds retain their original terms. The MIT licence applies to this repository's original code, not a new licence for third-party data or models.
 
-```bash
-cd src/User_interface/front-end\ code
-npm ci            # or `npm install`  
-npm run dev       # hot‑reload @ http://localhost:5173
-```
+## 9. Licence
 
----
-
-## 5. Training & Evaluation
-
-| Model                    | Precision  | Recall     | F1     | ROC‑AUC | Internal Test set |
-| ------------------------ | ---------- | ---------- | ------ | ------- | ----------------- |
-| **Bi‑LSTM (Production)** | **0.9985** | **0.9971** | 0.9978 | 0.9991  | 25 k URLs         |
-| Random Forest            | 0.976      | 0.973      | 0.974  | 0.987   | –                 |
-| MobileNet‑V2             | 0.981      | 0.979      | 0.980  | 0.992   | –                 |
-
-**External generalisation** (PhiUSIIL dataset, unseen domains): **88.32 % accuracy** – see `generalisation_testing.ipynb`.
-
-To reproduce the main model:
-
-```bash
-python src/Models_and_evaluations/LSTM/lstm_train_v2.py \
-       --epochs 30 --batch_size 256 --lr 1e-3 --kfold 5
-```
-
-Trained weights are saved under:
-
-```
-src/Models_and_evaluations/LSTM/lstm_train_v2/best_fold*.joblib
-```
+Original project code is available under the [MIT Licence](LICENSE).
 
 ---
 
-## 6. Running the Real‑Time API
+<div align="center">
 
-```bash
-cd src/User_interface/back-end\ code
-python main.py            # defaults to http://0.0.0.0:5000
-```
+**URL Classification — Inspect the signals behind a link before trusting it.**
 
-Endpoints:
+Python + PyTorch + Flask + Vue
 
-| Route      | Method | Body                    | Description                                            |
-| ---------- | ------ | ----------------------- | ------------------------------------------------------ |
-| `/health`  | GET    | –                       | Service heartbeat                                      |
-| `/predict` | POST   | `{ "url": "<string>" }` | JSON with `label` ∈ {`safe`, `phishing`}, `confidence` |
-
-The front‑end automatically calls this API when its base URL is configured in `src/User_interface/front-end code/.env`.
-
----
-
-## 7. Usage Examples
-
-```python
-import requests
-resp = requests.post(
-    "http://localhost:5000/predict",
-    json={"url": "http://update-my-paypal-login.com/signin"}
-)
-print(resp.json())
-# ➜ {'label': 'phishing', 'confidence': 0.997}
-```
-
-Batch mode accepts a CSV (`url` column) and returns a result file with predicted labels and safety statistics.
-
----
-
-## 8. Reproducibility Checklist ✅
-
-* **Deterministic splits** – `random_state=42` everywhere
-* **Environment lockfile** – see `requirements.txt` & `package-lock.json`
-* **Seed logging** – trainers emit seeds to `training.log`
-* **Model checkpointing** – best‐by‑F1 per fold, plus final ensemble weight
-
----
-
-## 9. Security & Ethical Considerations
-
-* **Responsible use** – The detector is for *defensive* security research.
-  Misuse to profile benign domains or censor content is disallowed by the license.
-* **Dataset license** – Original feeds are public‑domain; redistributed samples are anonymised.
-* **False positives** – Always show users a warning rather than hard‑blocking access.
-
----
-
-## 10. Contributing
-
-Pull requests are welcome! Please first open an issue describing the change.
-Follow the **Google Python style guide** and run `pre-commit run --all-files` before pushing.
-
----
-
-## 11. License
-
-[MIT](LICENSE) – free for commercial & research use, with attribution.
-
----
-
-*Happy phishing‑hunting! 🕵️‍♂️*
-
+</div>

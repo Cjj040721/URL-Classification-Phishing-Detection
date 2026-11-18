@@ -8,3 +8,7 @@ urllib3~=2.3.0
 beautifulsoup4~=4.13.3
 warcio~=1.7.5
 dnspython~=2.7.0
+flask~=3.1.0
+flask-cors~=6.0.0
+torch>=2.3
+python-whois~=0.9

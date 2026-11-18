@@ -154,6 +154,8 @@ use([
   GridComponent
 ])
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
+
 const urlInput = ref('')
 const loading = ref(false)
 const history = ref([])
@@ -219,7 +221,7 @@ async function checkUrl() {
   try {
     loading.value = true
     // Replace with actual API call
-    const response = await fetch('http://localhost:5000/detect', {
+    const response = await fetch(`${API_BASE_URL}/detect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -250,7 +252,7 @@ async function uploadExcel(file) {
   formData.append('file', file);
   
   try {
-    const response = await fetch('http://localhost:5000/upload_csv', {
+    const response = await fetch(`${API_BASE_URL}/upload_csv`, {
       method: 'POST',
       body: formData,
       timeout: 3000000,
@@ -344,7 +346,7 @@ function setFilterStatus(status) {
 async function exportToCSV() {
   try {
     uploading.value = true
-    const response = await fetch('http://localhost:5000/export_csv', {
+    const response = await fetch(`${API_BASE_URL}/export_csv`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
